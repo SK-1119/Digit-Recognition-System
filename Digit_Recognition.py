@@ -13,39 +13,56 @@ from sklearn.preprocessing import StandardScaler,MinMaxScaler
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 #%%
-from tensorflow.keras.datasets import mnist
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D,MaxPooling2D,Flatten,Dense,Dropout
-from tensorflow.keras.utils import to_categorical
+import tkinter as tk
+from tkinter import Canvas, Button, Label
+from PIL import Image, ImageDraw
 #%%
-(x_train,y_train),(x_test,y_true)=mnist.load_data()
+model = tf.keras.models.load_model('Digit_model.h5')
 #%%
-x_train=x_train.reshape(-1,28,28,1)/255.0
-x_test=x_test.reshape(-1,28,28,1)/255.0
-y_train=to_categorical(y_train,num_classes=10)
-y_true=to_categorical(y_true,num_classes=10)
+window = tk.Tk()
+window.title("Handwritten Digit Recognition")
 #%%
-model=Sequential()
+canvas = Canvas(window, width=280, height=280, bg="white")
+canvas.grid(row=0, column=0, columnspan=2)
 #%%
-model.add(Conv2D(32,(3,3),activation='relu',input_shape=(28,28,1)))
-model.add(MaxPooling2D((2,2)))
-model.add(Conv2D(64,(3,3),activation='relu'))
-model.add(MaxPooling2D((2,2)))
-model.add(Conv2D(128,(3,3),activation='relu'))
-model.add(MaxPooling2D((2,2)))
+label = Label(window, text="Predicted Digit: ")
+label.grid(row=1, column=0, columnspan=2)
 #%%
-model.add(Flatten())
+image = Image.new("L", (280, 280),0)
+draw = ImageDraw.Draw(image)
 #%%
-model.add(Dense(64,activation='relu'))
-model.add(Dense(128,activation='relu'))
-model.add(Dense(256,activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(10,activation='softmax'))
+def clear_canvas():
+    canvas.delete("all")
+    draw.rectangle((0, 0, 280, 280), fill="white")
+
 #%%
-model.compile(optimizer='adam',loss='categorical_crossentropy',metrics=['accuracy'])
+def recognize_digit():
+    # Resize the image to 28x28 and convert to a numpy array
+    digit_image = image.resize((28, 28))
+    digit_image=np.expand_dims(digit_image, 0)
+    digit_array = np.array(digit_image).astype('float32') / 255.0
+    digit_array = digit_array.reshape((1, 28, 28, 1))
+
+
+    prediction = model.predict(digit_array)
+
+    predicted_digit = np.argmax(prediction)
+
+    label.config(text="Predicted Digit: " + str(predicted_digit))
 #%%
-model.fit(x_train,y_train,batch_size=64,epochs=10,validation_split=0.1)
+def draw_digit(event):
+    x1, y1 = (event.x - 1), (event.y - 1)
+    x2, y2 = (event.x + 1), (event.y + 1)
+    canvas.create_oval(x1, y1, x2, y2, fill="black", width=5)
+    draw.line([x1, y1, x2, y2], fill="black", width=10)
 #%%
-loss,accuracy=model.evaluate(x_test,y_true)
+canvas.bind("<B1-Motion>", draw_digit)
 #%%
-model.save('Digit_model.h5')
+recognize_button = Button(window, text="Recognize Digit", command=recognize_digit)
+recognize_button.grid(row=2, column=0)
+
+clear_button = Button(window, text="Clear Canvas", command=clear_canvas)
+clear_button.grid(row=2, column=1)
+#%%
+window.mainloop()
+
